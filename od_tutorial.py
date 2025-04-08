@@ -59,7 +59,7 @@ class ODAgent(mesa.Agent):
 
 #%%
 # Run the model
-model = ODModel(N=100, mu=0.5, tolerance=0.2)  # Set tolerance (d) to 0.2
+model = ODModel(N=2000, mu=0.5, tolerance=0.5)  # Set tolerance (d) to 0.2
 num_steps = 100
 for _ in range(num_steps):
     model.step()
@@ -95,3 +95,5 @@ plt.xlabel("Time Step")
 plt.ylabel("Opinion")
 plt.show()
 # %%
+
+# test
