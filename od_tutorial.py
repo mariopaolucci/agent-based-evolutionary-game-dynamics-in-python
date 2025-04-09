@@ -1,4 +1,5 @@
 #%%
+
 import mesa
 
 # Data visualization tools.
@@ -21,6 +22,8 @@ class ODModel(mesa.Model):
         self.num_agents = N
         self.mu = mu  # Convergence parameter
         self.tolerance = tolerance  # Tolerance parameter (d)
+        self.running = True
+
 
         # Create agents
         for i in range(self.num_agents):
@@ -57,41 +60,32 @@ class ODAgent(mesa.Agent):
             other_agent.opinion += delta_opinion
             self.opinion -= delta_opinion
 
-#%%
-# Run the model
-model = ODModel(N=100, mu=0.5, tolerance=0.2)  # Set tolerance (d) to 0.2
-num_steps = 100
-for _ in range(num_steps):
-    model.step()
+
+if __name__ == '__main__':
+
+    #%%
+    # Run the model
+    model = ODModel(N=2000, mu=0.5, tolerance=0.2)  # Set tolerance (d) to 0.2
+    num_steps = 50
+    for _ in range(num_steps):
+        model.step()
 
 
-#%%
+    #%%
+    # Collect and visualize final data out of data collector
+    opinion_history = model.datacollector.get_agent_vars_dataframe()
 
-   # Collect and visualize final data out of data collector
-agent_opinion = [a.opinion for a in model.agents]
-# Create a histogram with seaborn
-g = sns.histplot(agent_opinion)
-g.set(
-    title="Opinion Distribution", xlabel="Opinion", ylabel="Number of Agents"
-)
-plt.show()
+    # Reset the index to make it easier to work with
+    opinion_history = opinion_history.reset_index()
 
+    # Plot opinions over time
+    plt.figure(figsize=(10, 6))
+    for agent_id in opinion_history["AgentID"].unique():
+        agent_data = opinion_history[opinion_history["AgentID"] == agent_id]
+        plt.plot(agent_data["Step"], agent_data["opinion"], linewidth=0.5, alpha=0.7)
 
-#%%
-# Collect and visualize final data out of data collector
-opinion_history = model.datacollector.get_agent_vars_dataframe()
-
-# Reset the index to make it easier to work with
-opinion_history = opinion_history.reset_index()
-
-# Plot opinions over time
-plt.figure(figsize=(10, 6))
-for agent_id in opinion_history["AgentID"].unique():
-    agent_data = opinion_history[opinion_history["AgentID"] == agent_id]
-    plt.plot(agent_data["Step"], agent_data["opinion"], linewidth=0.5, alpha=0.7)
-
-plt.title("Opinion Dynamics Over Time")
-plt.xlabel("Time Step")
-plt.ylabel("Opinion")
-plt.show()
-# %%
+    plt.title("Opinion Dynamics Over Time")
+    plt.xlabel("Time Step")
+    plt.ylabel("Opinion")
+    plt.show()
+    # %%
