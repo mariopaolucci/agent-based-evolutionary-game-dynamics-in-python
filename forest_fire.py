@@ -15,8 +15,6 @@ class FireAgent(mesa.Agent):
         if self.fire_type == "fire":
             neighbors = self.model.grid.get_neighborhood(self.pos, moore=False, include_center=False)
             for neighbor in neighbors:
-                if self.model.grid.out_of_bounds(neighbor):
-                    continue
                 if self.model.grid.is_cell_empty(neighbor):
                     if self.model.patches[neighbor] == "green":
                         new_agent = FireAgent(self.model, neighbor, fire_type="fire")
@@ -51,9 +49,6 @@ class ForestFireModel(mesa.Model):
         for y in range(self.grid.height):
             if self.patches[(0, y)] == "green":
                 fire_agent = FireAgent(self, (0, y), fire_type="fire")
-                for agent in self.grid.get_cell_list_contents((0, y)):
-                    agent.remove()
-                self.grid.place_agent(fire_agent, (0, y))
                 self.patches[(0, y)] = "burned"
                 self.burned_trees += 1
 
