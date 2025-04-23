@@ -49,9 +49,6 @@ class ForestFireModel(mesa.Model):
         for y in range(self.grid.height):
             if self.patches[(0, y)] == "green":
                 fire_agent = FireAgent(self, (0, y), fire_type="fire")
-                for agent in self.grid.get_cell_list_contents((0, y)):
-                    agent.remove()
-                self.grid.place_agent(fire_agent, (0, y))
                 self.patches[(0, y)] = "burned"
                 self.burned_trees += 1
 
