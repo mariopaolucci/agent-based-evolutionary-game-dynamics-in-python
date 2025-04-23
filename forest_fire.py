@@ -15,8 +15,6 @@ class FireAgent(mesa.Agent):
         if self.fire_type == "fire":
             neighbors = self.model.grid.get_neighborhood(self.pos, moore=False, include_center=False)
             for neighbor in neighbors:
-                if self.model.grid.out_of_bounds(neighbor):
-                    continue
                 if self.model.grid.is_cell_empty(neighbor):
                     if self.model.patches[neighbor] == "green":
                         new_agent = FireAgent(self.model, neighbor, fire_type="fire")
