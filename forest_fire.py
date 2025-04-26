@@ -7,7 +7,7 @@ class FireAgent(mesa.Agent):
     """An agent representing fire or ember."""
     def __init__(self, model, pos, fire_type="fire"):
         super().__init__(model)
-        self.pos = pos
+        self.model.grid.place_agent(self, pos)
         self.fire_type = fire_type
         self.color_intensity = 1.0  
 
@@ -18,7 +18,6 @@ class FireAgent(mesa.Agent):
                 if self.model.grid.is_cell_empty(neighbor):
                     if self.model.patches[neighbor] == "green":
                         new_agent = FireAgent(self.model, neighbor, fire_type="fire")
-                        self.model.grid.place_agent(new_agent, neighbor)
                         self.model.patches[neighbor] = "burned"
                         self.model.burned_trees += 1
             self.fire_type = "ember"
