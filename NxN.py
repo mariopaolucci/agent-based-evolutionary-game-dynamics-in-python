@@ -1,3 +1,4 @@
+#import
 import numpy as np
 import random
 import matplotlib.pyplot as plt
@@ -6,21 +7,21 @@ from mesa import Model
 from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 
-# ===== PARAMETRI DEL MODELLO =====
+#parametri
 WIDTH = 50
 HEIGHT = 50
 STEPS = 100
-PROB_REVISION = 0.5  # probabilità che un agente consideri un cambio di strategia
-NOISE = 0.1          # probabilità di scelta casuale
+PROB_REVISION = 0.5  #probabilità che un agente consideri un cambio di strategia
+NOISE = 0.1          #probabilità di scelta casuale
 PAYOFF_MATRIX = np.array([
-    [0, -1, 1],  # Sasso
-    [1, 0, -1],  # Carta
-    [-1, 1, 0]   # Forbici
+    [0, -1, 1],  #sasso
+    [1, 0, -1],  #carta
+    [-1, 1, 0]   #forbici
 ])
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
 
-# ===== SCHEDULER PERSONALIZZATO =====
+#scheduler perchè mesa.time non funziona
 class CustomRandomActivation:
     def __init__(self, model):
         self.model = model
@@ -36,7 +37,7 @@ class CustomRandomActivation:
             agent.advance()
 
 
-#AGENTE 
+#creazione agente
 class RPSAgent:
     def __init__(self, unique_id, model, strategy):
         self.unique_id = unique_id
@@ -65,7 +66,7 @@ class RPSAgent:
         self.strategy = self.strategy_after_revision
 
 
-#MODELLO GENERALE
+#modello generale con rumore
 class RPSModel(Model):
     def __init__(self, width, height, initial_distribution=None):
         super().__init__()
@@ -111,7 +112,7 @@ class RPSModel(Model):
         return [c / total for c in counts]
 
 
-# ===== VISUALIZZAZIONE E ANIMAZIONE =====
+#animazione grafico
 model = RPSModel(WIDTH, HEIGHT)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -163,13 +164,13 @@ ani = FuncAnimation(fig, update, frames=STEPS, interval=300, blit=False, repeat=
 plt.tight_layout()
 plt.show()
 
-######esercizio 1######
+#####################################################esercizio 1#####################################################
 #parametri per l'esercizio
 WIDTH = 20
 HEIGHT = 10
 STEPS = 100
-PROB_REVISION = 0.1
-NOISE = 0.0  # Potrà essere aggiornato manualmente nel codice
+PROB_REVISION = 0.1 #probabilità della revisione della strategia settata a 0.1
+NOISE = 0.0 #rumore a zero
 PAYOFF_MATRIX = np.array([
     [2, 4],  # Defect vs Defect, Defect vs Cooperate
     [1, 3]   # Cooperate vs Defect, Cooperate vs Cooperate
@@ -177,7 +178,7 @@ PAYOFF_MATRIX = np.array([
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
 
-# ===== SCHEDULER =====
+#scheduler
 class CustomRandomActivation:
     def __init__(self, model):
         self.model = model
@@ -193,7 +194,7 @@ class CustomRandomActivation:
             agent.advance()
 
 
-# ===== AGENTE =====
+#agente
 class RPSAgent:
     def __init__(self, unique_id, model, strategy):
         self.unique_id = unique_id
@@ -222,7 +223,7 @@ class RPSAgent:
         self.strategy = self.strategy_after_revision
 
 
-# ===== MODELLO =====
+#modello
 class RPSModel(Model):
     def __init__(self, width, height, initial_distribution, noise):
         super().__init__()
@@ -265,7 +266,7 @@ class RPSModel(Model):
         return [c / total for c in counts]
 
 
-# ===== VISUALIZZAZIONE =====
+#animazione grafico
 model = RPSModel(WIDTH, HEIGHT, initial_distribution=[0.0, 1.0], noise=NOISE)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
@@ -294,9 +295,9 @@ ax2.set_title("Evoluzione delle strategie")
 ax2.legend()
 
 def update(frame):
-    # ✨ Puoi modificare qui il livello di rumore dinamicamente
+    #modificare il livello di rumore
     if frame == 10:
-        model.noise = 0.02  # Introdotto rumore minimo dopo alcuni step
+        model.noise = 0.02  #rumore minimo
 
     model.step()
     dist = model.get_distribution()
@@ -320,21 +321,22 @@ ani = FuncAnimation(fig, update, frames=STEPS, interval=300, blit=False, repeat=
 plt.tight_layout()
 plt.show()
 
-########esercizio 2########
-# ===== PARAMETRI PERSONALIZZATI PER L'ESERCIZIO =====
-WIDTH = 20
-HEIGHT = 10
+#################################################esercizio 2########################################################
+#parametri
+WIDTH = 15
+HEIGHT = 20
 STEPS = 100
 PROB_REVISION = 0.1
-NOISE = 0.0  # Potrà essere aggiornato manualmente nel codice
+NOISE_INITIAL = 0.0 
 PAYOFF_MATRIX = np.array([
-    [2, 4],  # Defect vs Defect, Defect vs Cooperate
-    [1, 3]   # Cooperate vs Defect, Cooperate vs Cooperate
+    [ 0, -1,  1],  #sasso
+    [ 1,  0, -1],  #carta
+    [-1,  1,  0]   #forbici
 ])
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
 
-# ===== SCHEDULER =====
+#scheduler
 class CustomRandomActivation:
     def __init__(self, model):
         self.model = model
@@ -350,7 +352,7 @@ class CustomRandomActivation:
             agent.advance()
 
 
-# ===== AGENTE =====
+#agente
 class RPSAgent:
     def __init__(self, unique_id, model, strategy):
         self.unique_id = unique_id
@@ -379,7 +381,7 @@ class RPSAgent:
         self.strategy = self.strategy_after_revision
 
 
-# ===== MODELLO =====
+#modello
 class RPSModel(Model):
     def __init__(self, width, height, initial_distribution, noise):
         super().__init__()
@@ -422,8 +424,8 @@ class RPSModel(Model):
         return [c / total for c in counts]
 
 
-# ===== VISUALIZZAZIONE =====
-model = RPSModel(WIDTH, HEIGHT, initial_distribution=[0.0, 1.0], noise=NOISE)
+#grafico
+model = RPSModel(WIDTH, HEIGHT, initial_distribution=[1/3, 1/3, 1/3], noise=NOISE_INITIAL)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 grid_data = np.zeros((WIDTH, HEIGHT))
@@ -433,7 +435,7 @@ for x in range(WIDTH):
         if agents:
             grid_data[x, y] = agents[0].strategy
 
-im = ax1.imshow(grid_data.T, origin="lower", cmap="coolwarm", vmin=0, vmax=N_STRATEGIES - 1)
+im = ax1.imshow(grid_data.T, origin="lower", cmap="tab10", vmin=0, vmax=N_STRATEGIES - 1)
 ax1.set_title("Strategie sullo spazio")
 ax1.set_xlabel("X")
 ax1.set_ylabel("Y")
@@ -447,13 +449,13 @@ ax2.set_xlim(0, STEPS)
 ax2.set_ylim(0, 1)
 ax2.set_xlabel("Passi")
 ax2.set_ylabel("Frequenza")
-ax2.set_title("Evoluzione delle strategie")
+ax2.set_title("Evoluzione strategie")
 ax2.legend()
 
 def update(frame):
-    # ✨ Puoi modificare qui il livello di rumore dinamicamente
-    if frame == 10:
-        model.noise = 0.02  # Introdotto rumore minimo dopo alcuni step
+    #rumore a 0.001
+    if frame == 30:
+        model.noise = 0.001
 
     model.step()
     dist = model.get_distribution()
@@ -477,9 +479,8 @@ ani = FuncAnimation(fig, update, frames=STEPS, interval=300, blit=False, repeat=
 plt.tight_layout()
 plt.show()
 
-
-#################esercizio 3####################
-# ===== PARAMETRI MODELLO =====
+###################################################esercizio 3#######################################################
+#parametri
 WIDTH = 25
 HEIGHT = 40
 STEPS = 100
@@ -492,7 +493,7 @@ PAYOFF_MATRIX = np.array([
 ])
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
-# ===== SCHEDULER =====
+#scheduler
 class CustomRandomActivation:
     def __init__(self, model):
         self.model = model
@@ -507,7 +508,7 @@ class CustomRandomActivation:
         for agent in self.agents:
             agent.advance()
 
-# ===== AGENTE =====
+#agente
 class RPSAgent:
     def __init__(self, unique_id, model, strategy):
         self.unique_id = unique_id
@@ -535,7 +536,7 @@ class RPSAgent:
                     self.strategy_after_revision = observed.strategy
         self.strategy = self.strategy_after_revision
 
-# ===== MODELLO =====
+#modello
 class RPSModel(Model):
     def __init__(self, width, height, initial_distribution, noise):
         super().__init__()
@@ -578,8 +579,12 @@ class RPSModel(Model):
         return [c / total for c in counts]
 
 
-# ===== VISUALIZZAZIONE =====
-model = RPSModel(WIDTH, HEIGHT, initial_distribution=[0.5, 0.0, 0.5], noise=NOISE_INITIAL)
+#update modello
+def create_model():
+    return RPSModel(WIDTH, HEIGHT, initial_distribution=[0.5, 0.0, 0.5], noise=NOISE_INITIAL)
+
+#primo modello
+model = create_model()
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 grid_data = np.zeros((WIDTH, HEIGHT))
@@ -606,7 +611,15 @@ ax2.set_ylabel("Frequenza")
 ax2.set_title("Evoluzione strategie")
 ax2.legend()
 
+#aggiornamento della simulazione
 def update(frame):
+    global model
+
+    #a metà simulazione si fa il setup
+    if frame == 50:
+        model = create_model()
+        print(" SETUP NUOVO MODELLO ESEGUITO a metà simulazione")
+
     model.step()
     dist = model.get_distribution()
 
