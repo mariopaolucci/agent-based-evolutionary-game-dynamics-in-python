@@ -172,8 +172,8 @@ STEPS = 100
 PROB_REVISION = 0.1 #probabilità della revisione della strategia settata a 0.1
 NOISE = 0.0 #rumore a zero
 PAYOFF_MATRIX = np.array([
-    [2, 4],  # Defect vs Defect, Defect vs Cooperate
-    [1, 3]   # Cooperate vs Defect, Cooperate vs Cooperate
+    [2, 4],  #defect vs defect, defect vs cooperate
+    [1, 3]   #cooperate vs defect, cooperate vs cooperate
 ])
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
@@ -487,9 +487,9 @@ STEPS = 100
 PROB_REVISION = 0.1
 NOISE_INITIAL = 0.05
 PAYOFF_MATRIX = np.array([
-    [1, 1, 0],  # Strategy 0
-    [1, 1, 1],  # Strategy 1
-    [0, 1, 1]   # Strategy 2
+    [1, 1, 0],  #strategia 0
+    [1, 1, 1],  #strategia 1
+    [0, 1, 1]   #strategia 2
 ])
 N_STRATEGIES = PAYOFF_MATRIX.shape[0]
 
