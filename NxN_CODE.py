@@ -3,6 +3,7 @@ from mesa.space import NetworkGrid  # Import NetworkGrid for managing agents on 
 from mesa.datacollection import DataCollector  # Import DataCollector for collecting simulation data
 import numpy as np  # Import NumPy for numerical operations
 import random  # Import random for random number generation
+import networkx as nx
 
 class Player(Agent):
     """An agent representing a player in the game."""
@@ -47,8 +48,8 @@ class GameModel(Model):
     
     def __init__(self, N=100, prob_revision=0.5, noise=0.1):
         self.num_agents = N  # Number of agents in the model
-        self.grid = NetworkGrid()  # Initialize a NetworkGrid (this is incorrect and needs a graph as input)
-        self.schedule = self.random(self)  # Initialize the scheduler (this is incorrect; should use RandomActivation)
+        self.G = nx.Graph()
+        self.grid = NetworkGrid(self.G)  # Initialize a NetworkGrid (this is incorrect and needs a graph as input)
         self.prob_revision = prob_revision  # Probability of strategy revision
         self.noise = noise  # Noise level in strategy selection
         
