@@ -15,7 +15,7 @@ class Model(mesa.Model):
         super().__init__(seed=seed)
         self.num_agents = n
         self.running = True
-        self.prob_revision = 0.95
+        self.prob_revision = 0.995
         self.grid = mesa.space.MultiGrid(width, height, True)
 
         #Strategy creation
@@ -25,9 +25,6 @@ class Model(mesa.Model):
         #Agent creation
         agents = Agent.create_agents(model=self, n=n)
         # Create x and y coordinates for agents
-        x = self.rng.integers(0, self.grid.width, size=(n,))
-        y = self.rng.integers(0, self.grid.height, size=(n,))
-        
         available_cells = [(x, y) for x in range(self.grid.width) for y in range(self.grid.height)]
         # shuffle cells
         self.rng.shuffle(available_cells)
