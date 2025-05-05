@@ -1,125 +1,177 @@
+import mesa
+import matplotlib.animation as animation
+from matplotlib.cm import ScalarMappable  # Import ScalarMappable for color mapping
 from mesa import Agent, Model  # Import Agent and Model classes from Mesa
 from mesa.space import NetworkGrid  # Import NetworkGrid for managing agents on a network
 from mesa.datacollection import DataCollector  # Import DataCollector for collecting simulation data
 import numpy as np  # Import NumPy for numerical operations
 import random  # Import random for random number generation
 import networkx as nx
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-class Player(Agent):
-    """An agent representing a player in the game."""
-    
-    def __init__(self, unique_id, model):
-        super().__init__(unique_id, model)  # Initialize the agent with a unique ID and the model
-        self.strategy = self.random.choice(["A", "B"])  # Randomly assign an initial strategy ("A" or "B")
-        self.payoff = 0  # Initialize the agent's payoff to 0
-        self.xcor = 0  # Placeholder for the x-coordinate of the agent
-        self.ycor = 0  # Placeholder for the y-coordinate of the agent
 
-    def update_payoff(self):
-        """Update the player's payoff based on interactions with neighbors."""
-        neighbors = self.model.grid.get_neighbors(self)  # Get the agent's neighbors from the grid
-        for neighbor in neighbors:  # Iterate through each neighbor
-            if self.strategy == "A" and neighbor.strategy == "A":  # If both have strategy "A"
-                self.payoff += 1  # Increase payoff by 1
-            elif self.strategy == "B" and neighbor.strategy == "B":  # If both have strategy "B"
-                self.payoff += 2  # Increase payoff by 2
-            else:  # If strategies differ
-                self.payoff += 0  # No payoff
-
-    def update_strategy_after_revision(self):
-        """Update strategy based on neighbors' strategies and payoffs."""
-        neighbors = self.model.grid.get_neighbors(self)  # Get the agent's neighbors from the grid
-        best_payoff = self.payoff  # Start with the agent's current payoff
-        best_strategy = self.strategy  # Start with the agent's current strategy
-        
-        for neighbor in neighbors:  # Iterate through each neighbor
-            if neighbor.payoff > best_payoff:  # If a neighbor has a higher payoff
-                best_payoff = neighbor.payoff  # Update the best payoff
-                best_strategy = neighbor.strategy  # Update the best strategy
-        
-        # Introduce noise in strategy selection
-        if random.random() < self.model.noise:  # With a probability equal to the model's noise
-            self.strategy = random.choice(["A", "B"])  # Randomly choose a new strategy
-        else:  # Otherwise
-            self.strategy = best_strategy  # Adopt the best strategy
+payoffs = {'A': {'A': 1, 'B': 0}, 'B': {'A': 0, 'B': 2}}  # Define the payoff matrix for strategies A and B
 
 class GameModel(Model):
     """A model with a fixed number of players."""
     
-    def __init__(self, N=100, prob_revision=0.5, noise=0.1):
+    def __init__(self, N, width, height, seed=None):
+        super().__init__(seed=seed)  # Initialize the model with a random seed
         self.num_agents = N  # Number of agents in the model
-        self.G = nx.Graph()
-        self.grid = NetworkGrid(self.G)  # Initialize a NetworkGrid (this is incorrect and needs a graph as input)
-        self.prob_revision = prob_revision  # Probability of strategy revision
-        self.noise = noise  # Noise level in strategy selection
-        
-        # Create players
-        for i in range(self.num_agents):  # Loop through the number of agents
-            player = Player(i, self)  # Create a new player agent
-            self.schedule.add(player)  # Add the player to the scheduler
-            self.grid.place_agent(player, (0, 0))  # Place the player on the grid at position (0, 0)
+        self.running = True  # Flag to indicate if the model is running
+        self.prob_revision = 0.1  # Probability of strategy revision
 
-        self.build_erdos_renyi_network()  # Build an Erdos-Renyi network
-        self.relax_network()  # Adjust the network layout for visualization
+        self.G = nx.erdos_renyi_graph(n=self.num_agents, p=0.05, seed=seed)
+        self.net = NetworkGrid(self.G)
 
-    def build_erdos_renyi_network(self):
-        """Build an Erdos-Renyi network."""
-        for i in range(self.num_agents):  # Loop through all agents
-            for j in range(i + 1, self.num_agents):  # Loop through pairs of agents
-                if random.random() < 0.1:  # With a 10% probability
-                    self.grid.add_edge(i, j)  # Add an edge between the two agents
+        # Create agents
+        #for node in self.G.nodes():
+            #a = Player(
+                #self, model=self,  # Pass the model instance to the agent
+            #)
+        for i, node in enumerate(self.G.nodes()):
+             strategy = "A" if i < 70 else "B"
+             a = Player(i, self, strategy)
+             #self.agents.append(a)
+             self.net.place_agent(a, node)
+
+           
+            # Add the agent to the node
+
+        self.datacollector = mesa.DataCollector(
+            #model_reporters={"Gini": compute_gini},
+            agent_reporters={"Wealth": "wealth", "Current_strategy": "strategy"},
+        )
 
     def step(self):
-        """Advance the model by one step."""
-        for agent in self.schedule.agents:  # Loop through all agents
-            agent.update_payoff()  # Update each agent's payoff
-        
-        for agent in self.schedule.agents:  # Loop through all agents again
-            if random.random() < self.prob_revision:  # With a probability of strategy revision
-                agent.update_strategy_after_revision()  # Update the agent's strategy
-        
-        # Reset payoffs for the next round
-        for agent in self.schedule.agents:  # Loop through all agents
-            agent.payoff = 0  # Reset the payoff to 0
+        self.datacollector.collect(self)
+        self.agents.shuffle_do("update_payoff")
+        self.agents.shuffle_do("update_strategy")
 
-        self.relax_network()  # Adjust the network layout for visualization
 
-    def relax_network(self):
-        """Adjust the layout of the network for better visualization."""
-        for _ in range(3):  # Repeat 3 times for better layout
-            factor = np.sqrt(len(self.schedule.agents))  # Calculate a scaling factor
-            self.layout_spring(factor)  # Apply a spring layout algorithm
+class Player(Agent):
+    """An agent representing a player in the game."""
+    
+    def __init__(self, unique_id, model, strategy):
+        """Initialize the player with a unique ID, model, and strategy."""
+        super().__init__(model)  # Initialize the agent with a unique ID and the model
+        self.strategy = strategy   #self.random.choice(["A", "B"]) - Randomly assign an initial strategy ("A" or "B")
+        self.payoff = 0  # Initialize the agent's payoff to 0
+        self.xcor = 0  # Placeholder for the x-coordinate of the agent
+        self.ycor = 0  # Placeholder for the y-coordinate of the agent
+        self.wealth = 1  # Initialize the agent's wealth to 1
+        self.steps_not_given = 0  # Initialize the number of steps not given to 0
+        self.name = unique_id  # Assign a name to the agent       
 
-        # Don't bump the edges of the world
-        x_offset = max([player.xcor for player in self.schedule.agents]) + min([player.xcor for player in self.schedule.agents])  # Calculate x offset
-        y_offset = max([player.ycor for player in self.schedule.agents]) + min([player.ycor for player in self.schedule.agents])  # Calculate y offset
-        
-        # Adjust offsets to limit large jumps
-        x_offset = self.limit_magnitude(x_offset, 0.1)  # Limit the x offset
-        y_offset = self.limit_magnitude(y_offset, 0.1)  # Limit the y offset
+    def update_payoff(self):
+        neighbors_nodes = self.model.net.get_neighborhood(
+            self.pos, include_center=False
+        )
+        others=self.model.net.get_cell_list_contents(neighbors_nodes)
+        #print(self.model.net.get_cell_list_contents(neighbors_nodes))
+        if len(others) > 0 :
+            other = self.random.choice(others)
+            other.wealth += payoffs[other.strategy][self.strategy]
+            self.wealth += payoffs[self.strategy][other.strategy]
 
-        for player in self.schedule.agents:  # Loop through all agents
-            player.xcor -= x_offset / 2  # Adjust the x-coordinate
-            player.ycor -= y_offset / 2  # Adjust the y-coordinate
+    def update_strategy(self):
+        if self.random.random() < self.model.prob_revision:  # Fire with probability prob_revision
+            others = [x for x in self.model.agents if x != self]
+            if len(others) > 0:
+                other = self.random.choice(others)
+                if other.wealth > self.wealth:
+                    self.strategy = other.strategy
 
-    def layout_spring(self, factor):
-        """Placeholder for spring layout algorithm."""
-        # Implement the spring layout algorithm to position players
-        # This is a placeholder; you would need to implement the actual layout logic
-        pass
 
-    def limit_magnitude(self, number, limit):
-        """Limit the magnitude of a number to a specified limit."""
-        if number > limit:  # If the number exceeds the positive limit
-            return limit  # Return the positive limit
-        if number < -limit:  # If the number exceeds the negative limit
-            return -limit  # Return the negative limit
-        return number  # Otherwise, return the number as is
 
 # Initialize the game model
-model = GameModel(N=100, prob_revision=0.5, noise=0.1)  # Create an instance of the GameModel
+model = GameModel(N=100, width=10, height=10)  # Create an instance of the GameModel
 
 # Run the model for 10 steps
-for step in range(10):  # Loop for 10 steps
+for step in range(100):  # Loop for 10 steps
     model.step()  # Advance the model by one step
     print(f"Step {step + 1} completed.")  # Print a message indicating the step is completed
+
+# Collect data for plotting
+data = model.datacollector.get_agent_vars_dataframe()
+
+# Calculate average wealth over time
+#average_wealth = data.groupby('Step')['Wealth'].mean().reset_index()
+
+# Calculate strategy usage over time
+strategy_usage = data.groupby(['Step', 'Current_strategy']).size().unstack(fill_value=0).reset_index()
+
+# Plotting the average wealth over time
+#plt.figure(figsize=(10, 6))
+#sns.lineplot(data=average_wealth, x='Step', y='Wealth')
+#plt.title('Average Wealth Over Time')
+#plt.xlabel('Step')
+#plt.ylabel('Average Wealth')
+#plt.grid()
+#plt.show()
+
+# Plotting the usage of strategies A and B over time
+plt.figure(figsize=(20, 12))
+sns.lineplot(data=strategy_usage.melt(id_vars='Step', value_vars=['A', 'B']), 
+             x='Step', y='value', hue='Current_strategy', marker='o')
+plt.title('Usage of Strategies A and B Over Time')
+plt.xlabel('Step')
+plt.ylabel('Number of Agents')
+plt.grid()
+plt.legend(title='Strategy')
+plt.show()
+
+# Create a heatmap of agent strategies on the network (final step)
+# Plot strategy heatmap on the network (final step)
+# Slideshow of strategies over all steps
+# Slideshow of strategies over all steps
+# Gather strategy data over time
+df = model.datacollector.get_agent_vars_dataframe()
+steps = df.index.get_level_values(0).unique()
+strategy_map = {"A": 0, "B": 1}
+strategy_history = []
+
+for step in steps:
+    step_data = df.xs(step, level="Step")
+    strategies = step_data["Current_strategy"].map(strategy_map)
+    node_colors = [strategies.get(node, 0) for node in model.G.nodes()]
+    strategy_history.append(node_colors)
+
+# Setup figure
+fig, ax = plt.subplots(figsize=(10, 6))
+pos = nx.spring_layout(model.G, seed=42)
+nodes = nx.draw(
+    model.G, pos,
+    node_color=strategy_history[0],
+    with_labels=True,
+    cmap=plt.cm.coolwarm,
+    node_size=300,
+    edge_color="gray",
+    ax=ax
+)
+
+sm = ScalarMappable(cmap=plt.cm.coolwarm, norm=plt.Normalize(vmin=0, vmax=1))
+cbar = fig.colorbar(sm, ax=ax, label='Strategy')
+cbar.set_ticks([0, 1])
+cbar.set_ticklabels(["A", "B"])
+
+# Animation update function
+def update(frame):
+    ax.clear()
+    nx.draw(
+        model.G, pos,
+        node_color=strategy_history[frame],
+        with_labels=True,
+        cmap=plt.cm.coolwarm,
+        node_size=300,
+        edge_color="gray",
+        ax=ax
+    )
+    ax.set_title(f"Agent Strategies – Step {frame}")
+
+# Create animation
+ani = animation.FuncAnimation(fig, update, frames=len(strategy_history), interval=500)
+
+# Save as GIF (requires ImageMagick or Pillow)
+ani.save("strategy_evolution.gif", writer="pillow", fps=2)
