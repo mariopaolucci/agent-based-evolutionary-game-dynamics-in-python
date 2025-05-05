@@ -16,6 +16,45 @@ payoffs = np.array([
 N_STRATEGIES = 3
 STRATEGY_LABELS = {0: "Hawk", 1: "Dove", 2: "Retaliator"}
 
+
+class NxNImitateBestNeighborModel(mesa.Model):
+    """Modello con agenti che imitano i vicini."""
+
+    def __init__(self, n, width, height, seed=None):
+        super().__init__(seed=seed)
+        self.num_agents = n
+        self.running = True
+        self.width = width
+        self.height = height
+        self.prob_revision = 0.1  # Probabilità di revisione della strategia
+
+        # Crea gli agenti
+        agents = NxNImitateBestNeighborAgent.create_agents(model=self, n=n)
+
+        self.datacollector = mesa.DataCollector(
+            agent_reporters={"Current_strategy": "strategy"},
+        )
+
+    def step(self):
+        self.compute_neighbors()
+        self.datacollector.collect(self)
+        self.agents.shuffle_do("update_payoff")
+        self.agents.shuffle_do("update_strategy")
+
+    def compute_neighbors(self):
+        for agent in self.agents:
+            agent.neighbors = [
+                other for other in self.agents
+                if agent != other and self.is_neighbor(agent.pos, other.pos)
+            ]
+
+    def is_neighbor(self, pos1, pos2):
+        dx = abs(pos1[0] - pos2[0])
+        dy = abs(pos1[1] - pos2[1])
+        dx = min(dx, self.width - dx)
+        dy = min(dy, self.height - dy)
+        return dx <= 1 and dy <= 1
+        
 class NxNImitateBestNeighborAgent(mesa.Agent):
     def __init__(self, model):
         super().__init__(model)
@@ -35,45 +74,11 @@ class NxNImitateBestNeighborAgent(mesa.Agent):
         if best.payoff > self.payoff and self.random.random() < self.model.prob_revision:
             self.strategy = best.strategy
 
-    def is_neighbor(self, other):
-        dx = abs(self.pos[0] - other.pos[0])
-        dy = abs(self.pos[1] - other.pos[1])
-        dx = min(dx, self.model.width - dx)
-        dy = min(dy, self.model.height - dy)
-        return dx <= 1 and dy <= 1 and other != self
-
-class NxNImitateBestNeighborModel(mesa.Model):
-    def __init__(self, n, width, height, seed=None):
-        super().__init__(seed=seed)
-        self.num_agents = n
-        self.width = width
-        self.height = height
-        self.running = True
-        self.prob_revision = 0.9
-        self.custom_agents = []
-
-        # Crea agenti
-        for _ in range(n):
-            a = NxNImitateBestNeighborAgent(self)
-            self.custom_agents.append(a)
-
-        self.datacollector = mesa.DataCollector(
-            agent_reporters={"Current_strategy": "strategy"}
-        )
-
-    def shuffle_do(self, method_name):
-        self.random.shuffle(self.custom_agents)
-        for agent in self.custom_agents:
-            getattr(agent, method_name)()
-
-    def step(self):
-        self.datacollector.collect(self)
-        self.shuffle_do("update_payoff")
-        self.shuffle_do("update_strategy")
 
 # Inizializzazione e simulazione
 model = NxNImitateBestNeighborModel(n=100, width=10, height=10)
-for _ in range(200):
+steps = 200
+for step in range(200):
     model.step()
 
 # Estrazione dei dati
@@ -127,54 +132,6 @@ payoffs = np.array([
 
 N_STRATEGIES = 4
 STRATEGY_LABELS = {0: "Hawk", 1: "Dove", 2: "Retaliator", 3: "Bully"}
-
-# Definizione della classe del modello che estende la classe Model di Mesa
-class NxNImitateBestNeighborModel(mesa.Model): # Metodo costruttore del modello, inizializza il modello con parametri specifici
-    def __init__(self, n, width, height, seed=None):
-        super().__init__(seed=seed)
-        self.num_agents = n # Numero di agenti
-        self.width = width # Dimensioni della griglia
-        self.height = height # Dimensioni della griglia
-        self.running = True # Indica se il modello è in esecuzione
-        self.prob_revision = 0.1 # Probabilità che un agente riveda la propria strategia
-
-        # Crea gli agenti
-        agents = NxNImitateBestNeighborAgent.create_agents(model=self, n=n)
-
-        self.datacollector = mesa.DataCollector(
-            agent_reporters={"Current_strategy": "strategy"}
-        ) # Raccoglie i dati degli agenti
-
-    def step(self): # Metodo che esegue un passo del modello
-        self.datacollector.collect(self) # Raccoglie i dati
-        self.agents.shuffle_do("update_payoff") # Aggiorna i payoff degli agenti
-        self.agents.shuffle_do("update_strategy") # Aggiorna le strategie degli agenti
-
-class NxNImitateBestNeighborAgent(mesa.Agent): # Definizione della classe dell'agente che estende la classe Agent di Mesa
-    def __init__(self, model): # Metodo costruttore dell'agente, inizializza l'agente con parametri specifici
-        super().__init__(model) # Inizializza l'agente
-        self.strategy = self.random.randrange(N_STRATEGIES) # Strategia iniziale casuale
-        self.payoff = 0 # Payoff iniziale
-        self.pos = (self.random.randrange(model.width), self.random.randrange(model.height)) # Posizione iniziale casuale
-
-    def update_payoff(self): # Metodo che aggiorna il payoff dell'agente
-        neighbors = [a for a in self.model.agents if self.is_neighbor(a)] # Trova i vicini
-        self.payoff = sum(payoffs[self.strategy, other.strategy] for other in neighbors)# Calcola il payoff totale
-
-    def update_strategy(self): # Metodo che aggiorna la strategia dell'agente
-        neighbors = [a for a in self.model.agents if self.is_neighbor(a)] # Trova i vicini
-        if not neighbors: 
-            return
-        best = max(neighbors, key=lambda a: a.payoff) # Trova il vicino con il miglior payoff
-        if best.payoff > self.payoff and self.random.random() < self.model.prob_revision: # Se il vicino ha un payoff migliore e l'agente decide di cambiare strategia
-            self.strategy = best.strategy
-
-    def is_neighbor(self, other): # Metodo che verifica se un altro agente è un vicino
-        dx = abs(self.pos[0] - other.pos[0]) 
-        dy = abs(self.pos[1] - other.pos[1])
-        dx = min(dx, self.model.width - dx)
-        dy = min(dy, self.model.height - dy)
-        return dx <= 1 and dy <= 1 and other != self
 
 # Inizializzazione
 model = NxNImitateBestNeighborModel(n=100, width=10, height=10) 
@@ -317,8 +274,8 @@ class NxNImitateBestNeighborModel(mesa.Model):
 
 # Crea agenti con le strategie definite
         for s in all_strategies:
-            a = NxNImitateBestNeighborAgent(self, strategy=s)
-            self.custom_agents.append(a)
+            agents = NxNImitateBestNeighborAgent(self, strategy=s)
+            self.custom_agents.append(agents)
 
         self.datacollector = mesa.DataCollector(
             agent_reporters={"Current_strategy": "strategy"}
@@ -476,8 +433,8 @@ class NxNImitateBestNeighborModel(mesa.Model):
             all_strategies = [0] * n  # Tutti iniziano con la strategia 0
 
         for s in all_strategies:
-            a = NxNImitateBestNeighborAgent(self, strategy=s)
-            self.custom_agents.append(a)
+            agents = NxNImitateBestNeighborAgent(self, strategy=s)
+            self.custom_agents.append(agents)
 
         self.datacollector = mesa.DataCollector(
             agent_reporters={"Current_strategy": "strategy"}
