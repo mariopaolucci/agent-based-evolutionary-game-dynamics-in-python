@@ -86,8 +86,8 @@ class nxnImitationAgent(mesa.Agent):
                 payoff_self, payoff_other = self.payoffs[self.strategy][other.strategy]
                 
                 # Aggiungi il payoff a entrambi gli agenti
-                self.wealth += payoff_self
-                other.wealth += payoff_other
+                self.wealth = payoff_self
+                other.wealth = payoff_other
 
     def update_strategy(self):
         if self.random.random() < self.model.prob_revision:  # L'agente può aggiornare la strategia
