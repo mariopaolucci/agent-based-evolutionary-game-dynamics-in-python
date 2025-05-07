@@ -14,13 +14,11 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import pandas as pd
 
-#Definizione della matrice dei payoff, può essere modificata sia qui che nell'interfaccia grafica
 payoffs_default = {
     'A': {'A': (1, 1), 'B': (0, 0)},
     'B': {'A': (0, 0), 'B': (2, 2)}
 }
 
-# Classe del modello, prende in input molti parametri per poter essere compatibile con la gestione che avviene nella GUI
 class nxnImitationModel(mesa.Model):
     """A model with some number of agents."""
 
@@ -42,15 +40,13 @@ class nxnImitationModel(mesa.Model):
         assert len(self.grid.G.nodes) == self.num_agents, f"Mismatch: {len(self.grid.G.nodes)} nodi vs {self.num_agents} agenti"
         
 
-        # Metodo per la creazione degli agenti
+        # Create agents
         agents = nxnImitationAgent.create_agents(model=self, n=n)
 
-        # Posizionamento degli agenti nella rete
         for node, agent in zip(self.grid.G.nodes, agents):
             print(f"Posizionamento agente {agent} nel nodo {node} con strategia {agent.strategy}")
             self.grid.place_agent(agent, node)
 
-        # Dati da monitorare
         self.datacollector = mesa.DataCollector(
             agent_reporters={
                 "Strategy": "strategy",
@@ -59,13 +55,11 @@ class nxnImitationModel(mesa.Model):
             }
             )
 
-    # Step del modello, viene chiamato ad ogni iterazione della simulazione
     def step(self):
         self.datacollector.collect(self)
         self.agents.shuffle_do("update_payoff")
         self.agents.shuffle_do("update_strategy")
 
-# Agente che coincide con un nodo della rete
 class nxnImitationAgent(mesa.Agent):
         
     def __init__(self, model):
@@ -77,26 +71,24 @@ class nxnImitationAgent(mesa.Agent):
         self.wealth = 1
         self.initial_probs = model.initial_probs
 
-        #Utile alla generalizzazione nxn dei payoffs
         strategies=list(self.payoffs.keys())
 
-        # Se non sono stati forniti pesi iniziali, distribuisci uniformemente le probabilità iniziali
         if self.initial_probs is None:
             self.initial_probs = [1/len(strategies)] * len(strategies)
 
-        # Scegli randomicamente una strategia tenendo conto della distribuzione
         self.strategy = self.random.choices(strategies,weights=self.initial_probs,k=1)[0]
 
-    #Aggiorna la ricchezza in base alla strategia e alla strategia del vicino
     def update_payoff(self):
         neighbors = self.model.grid.get_neighbors(self.pos, include_center=False)
         if len(neighbors) > 0:
-            other = self.random.choice(neighbors)
-            payoff_self, payoff_other = self.payoffs[self.strategy][other.strategy]
-            self.wealth += payoff_self
-            other.wealth += payoff_other
+            for other in neighbors:
+                # Calcola i payoff in base alle strategie correnti
+                payoff_self, payoff_other = self.payoffs[self.strategy][other.strategy]
+                
+                # Aggiungi il payoff a entrambi gli agenti
+                self.wealth += payoff_self
+                other.wealth += payoff_other
 
-    #Aggiorna la strategia in base alla probabilità di revisione, al rumore e alla ricchezza del vicino
     def update_strategy(self):
         if self.random.random() < self.model.prob_revision:  # L'agente può aggiornare la strategia
             strategies = list(self.payoffs.keys())
@@ -114,7 +106,6 @@ class nxnImitationAgent(mesa.Agent):
                         self.strategy = other.strategy
 
 
-# Classe che si occupa della costruzione della rete, in base al tipo di modello scelto
 class Network(NetworkGrid):
 
     def __init__(self, num_nodes, network_model_type,edges,avg_degree,prob_rewire,prob_link):
@@ -129,7 +120,7 @@ class Network(NetworkGrid):
     
     def build_network(self):
         """Costruisce una rete in base al tipo di modello"""
-        # Usa un dizionario per mappare la rete alla funzione
+        # Usa un dizionario per mappare il modello alla funzione
         model_functions = {
             "erdos_renyi": self.erdos_renyi,
             "watts_strogatz": self.watts_strogatz,
@@ -141,7 +132,6 @@ class Network(NetworkGrid):
             "path_network": self.path_network
         }
         
-        # Richiamiamo il metodo per la creazione del grafo scelto
         if self.network_model_type in model_functions:
             graph=model_functions[self.network_model_type](self.num_nodes)
             self.pos=nx.spring_layout(graph)
@@ -149,7 +139,6 @@ class Network(NetworkGrid):
         else:
             raise ValueError("Unknown network model type: {}".format(self.network_model_type))
 
-    # Da qui in poi sono definiti i vari metodi per la creazione dei grafi, ognuno con le proprie specifiche
     def erdos_renyi(self, num_nodes):
         """Crea un grafo Erdős–Rényi"""
         graph = nx.erdos_renyi_graph(n=num_nodes, p=self.prob_link)
@@ -185,10 +174,10 @@ class Network(NetworkGrid):
         #plt.show()
         return graph
     
-    # Tenere conto che questo grafo utilizza una tupla per identificare i nodi, quindi la posizione è (x,y) e non un singolo numero
     def grid_4_neighbors(self, num_nodes):
         side = int(math.ceil(math.sqrt(num_nodes)))  # usa ceil invece di floor
         graph = nx.grid_2d_graph(side, side, periodic=False)
+        # Può contenere più nodi di quelli richiesti, ma possiamo prenderne solo n dopo
         sub_nodes = list(graph.nodes)[:num_nodes]
         subgraph = graph.subgraph(sub_nodes).copy()
         pos = {node: (node[0], node[1]) for node in subgraph.nodes()}
@@ -214,7 +203,6 @@ class Network(NetworkGrid):
         #plt.show()
         return graph
 
-#Da qui in poi è definita la GUI, che permette di interagire con il modello e di visualizzarne i risultati
 class App:
     def __init__(self, root):
         self.root = root
@@ -294,7 +282,6 @@ class App:
         ttk.Button(control_frame, text="Esegui Simulazione", command=self.run_simulation).pack(pady=10)
 
 
-#Il run della simulazione viene eseguito qui, in modo da poter essere richiamato dal bottone della GUI
     def run_simulation(self):
 
         payoffs = eval(self.payoffs_text.get("1.0", tk.END))
@@ -349,7 +336,6 @@ class App:
             self.plot_strategy_distribution(model)
             self.plot_network(model.grid.G,model.grid.pos,model=model, strategy_colors=self.strategy_colors)
 
-    # Stampa staticamente la rete
     def plot_network(self, graph, pos, model=None, strategy_colors=None):
         self.network_figure.clf()
         ax = self.network_figure.add_subplot(111)
@@ -373,7 +359,6 @@ class App:
         nx.draw(graph, pos, with_labels=True, node_color=node_colors, edge_color='gray', ax=ax)
         self.network_canvas.draw()
 
-    #Animazione della rete e della distribuzione delle strategie
     def animate_network(self, graph, pos, strategy_snapshots):
         self.network_figure.clf()
         ax = self.network_figure.add_subplot(111)
@@ -405,7 +390,6 @@ class App:
 
         return strategy_colors
     
-    # Animazione della distribuzione delle strategie (stackplot)
     def animate_strategy_distribution_stackplot(self, strategy_counts, strategy_colors):
         self.figure.clf()
         ax = self.figure.add_subplot(111)
@@ -430,7 +414,8 @@ class App:
         anim = FuncAnimation(self.figure, update, frames=len(strategy_counts), interval=300, repeat=False)
         self.canvas.draw()
 
-    # Plot della distribuzione delle strategie (statico)
+
+
     def plot_strategy_distribution(self, model):
         # Pulisci la figura corrente prima di disegnare
         self.figure.clf()
@@ -441,6 +426,7 @@ class App:
         wealth_history = agent_data['Wealth'].unstack().mean(axis=1)
 
 
+        # Subplot 3: Area plot (stackplot)
         ax3 = self.figure.add_subplot(111)
         strategies = strategy_counts.columns
         colors = [self.strategy_colors.get(s, 'gray') for s in strategies]
@@ -457,7 +443,7 @@ class App:
         self.figure.tight_layout()
         self.canvas.draw()
 
-# Esegui l'applicazione
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
