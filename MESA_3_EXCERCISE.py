@@ -6,7 +6,7 @@ from mesa.space import NetworkGrid
 from mesa.datacollection import DataCollector
 import networkx as nx
 import random
-
+import pandas as pd
 
 # DEFINIZIONE DELL'AGENTE
 class PlayerAgent(Agent):
@@ -53,7 +53,7 @@ class StrategyModel(Model):
         self.G = nx.Graph()
         self.grid = NetworkGrid(self.G)
 
-        self.payoff_matrix = [[1, -0.4], [0, 1.2]]
+        self.payoff_matrix = [[1, -0.4], [1.2, 0]]
         self.n_of_strategies = len(self.payoff_matrix)
 
         if initial_strategies is None:
@@ -90,16 +90,16 @@ class StrategyModel(Model):
         self.schedule.step()
         self.datacollector.collect(self)
         if self.first_step:
+            self.print_payoffs()
             self.first_step = False
-        self.print_payoffs()  # Stampa i payoff dopo ogni passo
 
     def print_payoffs(self):
-        print("Payoffs degli agenti:")
+        print("Payoffs iniziali degli agenti (IEEE 754):")
         for agent in self.schedule.agents:
-            print(f"Agente {agent.unique_id}: Payoff = {agent.payoff}")
+           print(f"Agente {agent.unique_id}: Payoff = {agent.payoff}")
 
 # VISUALIZZAZIONE GRAFICA
-def plot_network(model):
+def plot_network(model, ax):
     G = model.G
     pos = nx.spring_layout(G, seed=42)
     colors = []
@@ -113,37 +113,29 @@ def plot_network(model):
             color = "gray"
         colors.append(color)
 
-    fig = plt.figure(figsize=(6, 4))
-    nx.draw(G, pos, with_labels=False, node_color=colors, node_size=500, edge_color='gray')
-    plt.title("Network di partenza", color='white')
-    plt.show()
+    nx.draw(G, pos, with_labels=False, node_color=colors, node_size=500, edge_color='gray', ax=ax)
 
 # SIMULAZIONE
 def run_simulation(model, steps):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5)) 
+    plot_network(model, axes[0]) 
+    axes[0].set_title("Il nostro network iniziale")
+    
     for _ in range(steps):
-        model.step()
+        model.step()       
+        for agent in model.schedule.agents:
+            agent.advance()
+
+    plot_network(model, axes[1])
+    axes[1].set_title("Totale cooperazione")
+    plt.tight_layout()
+    plt.show()
 
     model_data = model.datacollector.get_model_vars_dataframe()
     return model_data["Strategy_0"].values, model_data["Strategy_1"].values
 
-
-#SIMULAZIONE
+# SIMULAZIONE
 model = StrategyModel(num_players=20, prob_revision=1.0, initial_strategies=None)
-plot_network(model)
 
-steps = 1
+steps = 2
 strategy_0, strategy_1 = run_simulation(model, steps)
-#plot_network(model)
-
-
-'''
-plt.figure(figsize=(8, 4))
-plt.plot(range(steps), strategy_0, label="Cooperator (Strategy 0)", color='green')
-plt.plot(range(steps), strategy_1, label="Defector (Strategy 1)", color='red')
-plt.xlabel('Steps')
-plt.ylabel('Proportion of Agents')
-plt.title('Strategy Evolution Over Time')
-plt.legend(loc='upper right')
-plt.grid(True)
-plt.show()
-'''
