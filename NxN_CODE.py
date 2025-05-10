@@ -1,48 +1,62 @@
 import mesa
 import matplotlib.animation as animation
-from matplotlib.cm import ScalarMappable  # Import ScalarMappable for color mapping
-from mesa import Agent, Model  # Import Agent and Model classes from Mesa
-from mesa.space import NetworkGrid  # Import NetworkGrid for managing agents on a network
-from mesa.datacollection import DataCollector  # Import DataCollector for collecting simulation data
-import numpy as np  # Import NumPy for numerical operations
-import random  # Import random for random number generation
+from matplotlib.cm import ScalarMappable
+from mesa import Agent, Model
+from mesa.space import NetworkGrid
+from mesa.datacollection import DataCollector
+import numpy as np
+import random
 import networkx as nx
 import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
-
-payoffs = {'A': {'A': 1, 'B': 0}, 'B': {'A': 0, 'B': 2}}  # Define the payoff matrix for strategies A and B
+payoffs = {'A': {'A': 1, 'B': 0}, 'B': {'A': 0, 'B': 2}}
 
 class GameModel(Model):
-    """A model with a fixed number of players."""
-    
-    def __init__(self, N, width, height, seed=None):
-        super().__init__(seed=seed)  # Initialize the model with a random seed
-        self.num_agents = N  # Number of agents in the model
-        self.running = True  # Flag to indicate if the model is running
-        self.prob_revision = 0.1  # Probability of strategy revision
+    """A model with a fixed number of players and selectable network type."""
 
-        self.G = nx.erdos_renyi_graph(n=self.num_agents, p=0.05, seed=seed)
+    def __init__(self, N, width, height, graph_type="erdos", seed=None):
+        super().__init__(seed=seed)
+        self.num_agents = N
+        self.running = True
+        self.prob_revision = 0.1
+        self.graph_type = graph_type
+
+        # Choose network type
+        if graph_type == "erdos":
+            self.G = nx.erdos_renyi_graph(n=N, p=0.1, seed=seed)
+        elif graph_type == "watts":
+            self.G = nx.watts_strogatz_graph(n=N, k=10, p=0.1, seed=seed)
+        elif graph_type == "barabasi":
+            self.G = nx.barabasi_albert_graph(n=N, m=5, seed=seed)
+        else:
+            raise ValueError("Invalid graph_type. Use 'erdos', 'watts', or 'barabasi'.")
+
+        self.apply_noise(noise_prob=0.03)
+
         self.net = NetworkGrid(self.G)
 
-        # Create agents
-        #for node in self.G.nodes():
-            #a = Player(
-                #self, model=self,  # Pass the model instance to the agent
-            #)
         for i, node in enumerate(self.G.nodes()):
-             strategy = "A" if i < 70 else "B"
-             a = Player(i, self, strategy)
-             #self.agents.append(a)
-             self.net.place_agent(a, node)
+            strategy = "A" if i < 70 else "B"
+            a = Player(i, self, strategy)
+            self.net.place_agent(a, node)
 
-           
-            # Add the agent to the node
-
-        self.datacollector = mesa.DataCollector(
-            #model_reporters={"Gini": compute_gini},
+        self.datacollector = DataCollector(
             agent_reporters={"Wealth": "wealth", "Current_strategy": "strategy"},
         )
+
+    def apply_noise(self, noise_prob=0.03):
+        edges_to_consider = list(self.G.edges())
+        for u, v in edges_to_consider:
+            if self.random.random() < noise_prob:
+                self.G.remove_edge(u, v)
+                new_u = self.random.randrange(self.num_agents)
+                new_v = self.random.randrange(self.num_agents)
+                while new_u == new_v or self.G.has_edge(new_u, new_v):
+                    new_u = self.random.randrange(self.num_agents)
+                    new_v = self.random.randrange(self.num_agents)
+                self.G.add_edge(new_u, new_v)
 
     def step(self):
         self.datacollector.collect(self)
@@ -51,127 +65,62 @@ class GameModel(Model):
 
 
 class Player(Agent):
-    """An agent representing a player in the game."""
-    
     def __init__(self, unique_id, model, strategy):
-        """Initialize the player with a unique ID, model, and strategy."""
-        super().__init__(model)  # Initialize the agent with a unique ID and the model
-        self.strategy = strategy   #self.random.choice(["A", "B"]) - Randomly assign an initial strategy ("A" or "B")
-        self.payoff = 0  # Initialize the agent's payoff to 0
-        self.xcor = 0  # Placeholder for the x-coordinate of the agent
-        self.ycor = 0  # Placeholder for the y-coordinate of the agent
-        self.wealth = 1  # Initialize the agent's wealth to 1
-        self.steps_not_given = 0  # Initialize the number of steps not given to 0
-        self.name = unique_id  # Assign a name to the agent       
+        super().__init__(model)
+        self.strategy = strategy
+        self.payoff = 0
+        self.wealth = 1
+        self.name = unique_id
 
     def update_payoff(self):
-        neighbors_nodes = self.model.net.get_neighborhood(
-            self.pos, include_center=False
-        )
-        others=self.model.net.get_cell_list_contents(neighbors_nodes)
-        #print(self.model.net.get_cell_list_contents(neighbors_nodes))
-        if len(others) > 0 :
+        neighbors_nodes = self.model.net.get_neighborhood(self.pos, include_center=False)
+        others = self.model.net.get_cell_list_contents(neighbors_nodes)
+        if len(others) > 0:
             other = self.random.choice(others)
             other.wealth += payoffs[other.strategy][self.strategy]
             self.wealth += payoffs[self.strategy][other.strategy]
 
     def update_strategy(self):
-        if self.random.random() < self.model.prob_revision:  # Fire with probability prob_revision
-            others = [x for x in self.model.agents if x != self]
+        if self.random.random() < self.model.prob_revision:
+            neighbors_nodes = self.model.net.get_neighborhood(self.pos, include_center=False)
+            others = self.model.net.get_cell_list_contents(neighbors_nodes)
             if len(others) > 0:
                 other = self.random.choice(others)
                 if other.wealth > self.wealth:
                     self.strategy = other.strategy
 
 
+# --- Batch Runner ---
+num_runs = 300
+num_steps = 5000
+network_type = "watts"  # Change this to "erdos", "watts", or "barabasi"
 
-# Initialize the game model
-model = GameModel(N=100, width=10, height=10)  # Create an instance of the GameModel
+final_results = []
 
-# Run the model for 10 steps
-for step in range(100):  # Loop for 10 steps
-    model.step()  # Advance the model by one step
-    print(f"Step {step + 1} completed.")  # Print a message indicating the step is completed
+for run in range(num_runs):
+    print(f"\n--- Run {run + 1} of {num_runs} ---")
 
-# Collect data for plotting
-data = model.datacollector.get_agent_vars_dataframe()
+    model = GameModel(N=100, width=10, height=10, graph_type=network_type, seed=run)
 
-# Calculate average wealth over time
-#average_wealth = data.groupby('Step')['Wealth'].mean().reset_index()
+    for step in range(num_steps):
+        model.step()
 
-# Calculate strategy usage over time
-strategy_usage = data.groupby(['Step', 'Current_strategy']).size().unstack(fill_value=0).reset_index()
+    data = model.datacollector.get_agent_vars_dataframe()
+    last_step = data.index.get_level_values(0).max()
+    final_data = data.xs(last_step, level="Step")
+    count_A = (final_data["Current_strategy"] == "A").sum()
+    count_B = (final_data["Current_strategy"] == "B").sum()
+    final_results.append({"run": run, "A": count_A, "B": count_B})
 
-# Plotting the average wealth over time
-#plt.figure(figsize=(10, 6))
-#sns.lineplot(data=average_wealth, x='Step', y='Wealth')
-#plt.title('Average Wealth Over Time')
-#plt.xlabel('Step')
-#plt.ylabel('Average Wealth')
-#plt.grid()
-#plt.show()
+df_results = pd.DataFrame(final_results)
+df_results.to_csv("final_strategy_counts.csv", index=False)
 
-# Plotting the usage of strategies A and B over time
-plt.figure(figsize=(20, 12))
-sns.lineplot(data=strategy_usage.melt(id_vars='Step', value_vars=['A', 'B']), 
-             x='Step', y='value', hue='Current_strategy', marker='o')
-plt.title('Usage of Strategies A and B Over Time')
-plt.xlabel('Step')
-plt.ylabel('Number of Agents')
-plt.grid()
-plt.legend(title='Strategy')
+plt.figure(figsize=(8, 5))
+sns.histplot(df_results['A'], kde=False, bins=20, color='skyblue')
+plt.title(f"Distribution of Strategy A After {num_steps} Steps ({network_type.title()} Network)")
+plt.xlabel("Number of Agents Using Strategy A")
+plt.ylabel("Frequency")
+plt.grid(True)
+plt.tight_layout()
 plt.show()
 
-# Create a heatmap of agent strategies on the network (final step)
-# Plot strategy heatmap on the network (final step)
-# Slideshow of strategies over all steps
-# Slideshow of strategies over all steps
-# Gather strategy data over time
-df = model.datacollector.get_agent_vars_dataframe()
-steps = df.index.get_level_values(0).unique()
-strategy_map = {"A": 0, "B": 1}
-strategy_history = []
-
-for step in steps:
-    step_data = df.xs(step, level="Step")
-    strategies = step_data["Current_strategy"].map(strategy_map)
-    node_colors = [strategies.get(node, 0) for node in model.G.nodes()]
-    strategy_history.append(node_colors)
-
-# Setup figure
-fig, ax = plt.subplots(figsize=(10, 6))
-pos = nx.spring_layout(model.G, seed=42)
-nodes = nx.draw(
-    model.G, pos,
-    node_color=strategy_history[0],
-    with_labels=True,
-    cmap=plt.cm.coolwarm,
-    node_size=300,
-    edge_color="gray",
-    ax=ax
-)
-
-sm = ScalarMappable(cmap=plt.cm.coolwarm, norm=plt.Normalize(vmin=0, vmax=1))
-cbar = fig.colorbar(sm, ax=ax, label='Strategy')
-cbar.set_ticks([0, 1])
-cbar.set_ticklabels(["A", "B"])
-
-# Animation update function
-def update(frame):
-    ax.clear()
-    nx.draw(
-        model.G, pos,
-        node_color=strategy_history[frame],
-        with_labels=True,
-        cmap=plt.cm.coolwarm,
-        node_size=300,
-        edge_color="gray",
-        ax=ax
-    )
-    ax.set_title(f"Agent Strategies – Step {frame}")
-
-# Create animation
-ani = animation.FuncAnimation(fig, update, frames=len(strategy_history), interval=500)
-
-# Save as GIF (requires ImageMagick or Pillow)
-ani.save("strategy_evolution.gif", writer="pillow", fps=2)
