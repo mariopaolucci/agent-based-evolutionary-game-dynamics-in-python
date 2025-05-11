@@ -15,28 +15,29 @@ class PlayerAgent(Agent):
         self.payoff = 0
 
     def calculate_payoff(self):
-        neighbors = self.model.graph.neighbors(self.pos)
+      # Trova gli agenti vicini
+      neighbors = list(self.model.graph.neighbors(self.pos))
+      agents = [self.model.grid.get_cell_list_contents([n])[0] for n in neighbors if self.model.grid.get_cell_list_contents([n])]
 
-        agents = []
-        for n in neighbors:
-            contents = self.model.grid.get_cell_list_contents([n])
-            if contents:
-                agents.append(contents[0])
+      if not agents:
+        self.payoff = 0
+        return
 
-        if not agents:
-            self.payoff = 0
-            return
+    # Se si gioca contro un solo vicino casuale
+      if self.model.play_with == "one-random-nbr":
+        partner = self.random.choice(agents)
+        self.payoff = self.model.payoff_matrix[self.strategy][partner.strategy]
+      else:
+        # Si gioca contro tutti i vicini
+        total_payoff = 0
+        for neighbor in agents:
+            total_payoff += self.model.payoff_matrix[self.strategy][neighbor.strategy]
 
-        if self.model.play_with == "one-random-nbr":
-            partner = self.random.choice(agents)
-            self.payoff = self.model.payoff_matrix[self.strategy][partner.strategy]
+        # Se è richiesto il totale, lo lasciamo; altrimenti, calcoliamo la media
+        if self.model.play_with.endswith("all-nbrs-TOTAL-payoff"):
+            self.payoff = total_payoff
         else:
-            counts = [0] * self.model.n_strategies
-            for a in agents:
-                counts[a.strategy] += 1
-            my_row = self.model.payoff_matrix[self.strategy]
-            total = sum(my_row[i] * counts[i] for i in range(self.model.n_strategies))
-            self.payoff = total if self.model.play_with.endswith("TOTAL-payoff") else total / len(agents)
+            self.payoff = total_payoff / len(agents)
 
     def decide_strategy(self):
         neighbors = self.model.graph.neighbors(self.pos)
@@ -77,13 +78,14 @@ class PlayerAgent(Agent):
             prob = 1 / (1 + np.exp(-self.model.m * diff))
             self.strategy_after_revision = n.strategy if self.random.random() < prob else self.strategy
         elif dr == "Santos-Pacheco":
-            n = self.random.choice(agents)
-            diff = n.payoff - self.payoff
-            ki = len(list(neighbors))
-            kj = len(list(self.model.grid.get_neighbors(n.pos, include_center=False)))
-            denom = self.model.max_payoff_diff_matrix * max(ki, kj)
-            prob = max(0, diff / denom)
-            self.strategy_after_revision = n.strategy if self.random.random() < prob else self.strategy
+            n = self.random.choice(agents) #scelta di un vicino casuale
+            diff = n.payoff - self.payoff #calcolo della differenza di payoff
+            # per capire quanto siamo "centrali" nella rete (chi ha più connessioni).
+            ki = len(list(neighbors)) #numero dei miei vicini
+            kj = len(list(self.model.grid.get_neighbors(n.pos, include_center=False))) #numero dei vicini di n
+            denom = self.model.max_payoff_diff_matrix * max(ki, kj) #calcolo un denominatore che tiene conto sia della rete che dei payoff
+            prob = max(0, diff / denom) #calcolo quant'è la probabilità di imitare
+            self.strategy_after_revision = n.strategy if self.random.random() < prob else self.strategy #prendo la decisione finale
         else:
             self.strategy_after_revision = self.strategy
 
@@ -164,7 +166,7 @@ if __name__ == "__main__":
         seed=42
     )
 
-    for _ in range(200):
+    for _ in range(10500):
         model.step()
 
     df = model.datacollector.get_model_vars_dataframe()
