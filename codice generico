@@ -201,7 +201,7 @@ if __name__ == "__main__":
 #   for node in model.graph.nodes():
 #       agent = model.grid.get_cell_list_contents([node])[0]
 #       node_colors.append("red" if agent.strategy == 0 else "blue")
-#       node_sizes.append(50 + 200 * agent.payoff)
+#       node_sizes.append(50 + 10500 * agent.payoff)
 
 #   nx.draw_networkx_edges(model.graph, pos, alpha=0.2)
 #   nx.draw_networkx_nodes(model.graph, pos, node_color=node_colors, node_size=node_sizes, alpha=0.9)
