@@ -97,8 +97,8 @@ class PlayerAgent(Agent):
 class GameModel(Model):
     def __init__(self, n_players, strategies, payoff_matrix,
                  play_with="all-nbrs-TOTAL-payoff", decision_rule="best-neighbor",
-                 m=0.1, noise=0.0, seed=None):
-        super().__init__(seed=seed)
+                 m=0.1, noise=0.0, seed=38):
+        super().__init__(seed=38)
         self.strategies = strategies
         self.n_strategies = len(strategies)
         self.payoff_matrix = payoff_matrix
@@ -163,7 +163,7 @@ if __name__ == "__main__":
         decision_rule="Santos-Pacheco",
         m=0.5,
         noise=0.0,
-        seed=42
+        seed=38
     )
 
     for _ in range(10500):
