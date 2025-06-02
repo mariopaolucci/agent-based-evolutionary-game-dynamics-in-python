@@ -60,16 +60,22 @@ class ImitateBestModel(mesa.Model):
         #aggiunto
         positions = list(product(range(width), range(height)))  # tutte le coordinate (x, y)
         agents = ImitateAgent.create_agents(model=self, n=width * height)
-
+        
         for agent, pos in zip(agents, positions):
-            agent.pos = pos
+
+        # il posizionamento manuale degli agenti non è necessario e manda in conflitto le posizioni
+        # generando il warning visto nel terminale.
+        # rimuovendo la riga seguente, posizioniamo gli agenti automaticamente nella griglia
+        #    agent.pos = pos
             self.grid.place_agent(agent, pos)
 
         self.datacollector.collect(self)
 
     def step(self):             
-        # Attivazione casuale: ogni agente esegue il suo metodo 'step' in ordine casuale
-        self.agents.shuffle_do("step") 
+        # commentato step perché non necessario in questo modello e soprattutto perché non viene mai definito nell'agent
+        # quindi si potrebbe procedere con la rimozione definitiva dal codice.
+
+        # self.agents.shuffle_do("step")
         self.agents.shuffle_do("update_payoff")
         self.agents.shuffle_do("update_strategy")
         self.datacollector.collect(self)
@@ -88,6 +94,8 @@ class ImitateBestModel(mesa.Model):
         num_D = sum(1 for a in self.agents if a.strategy == 1)
         total = len(self.agents)
         return num_C, num_D, 100 * num_C / total, 100 * num_D / total  
+
+
 
 # ——— ANIMAZIONE E GRAFICO ———
 def update(frame):
